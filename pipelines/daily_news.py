@@ -19,6 +19,7 @@ from agents.editor import review_article
 from agents.factchecker import factcheck_story
 from agents.ranker import rank_stories
 from agents.researcher import research_agent
+from agents.signal_enricher import enrich_with_signals
 from agents.writer import write_article
 from content.images import fetch_unsplash_images
 from content.seo import generate_focus_keyword, generate_meta_description, generate_seo_title, generate_tags
@@ -106,7 +107,10 @@ class DailyNewsPipeline(Pipeline):
         if not stories:
             return None
 
-        # Step 2: Rank
+        # Step 1.5: Enrich with real-world virality signals
+        stories = enrich_with_signals(stories, category)
+
+        # Step 2: Rank (now includes virality_signal in composite score)
         top_stories = rank_stories(stories, category)
         if not top_stories:
             return None
@@ -290,6 +294,7 @@ class DailyNewsPipeline(Pipeline):
                     "url":           post_url,
                     "trend":         story.get("market_trend", ""),
                     "score":         story.get("market_relevance_score", "?"),
+                    "virality":      story.get("virality_score", "?"),
                     "seo_score":     seo_score,
                     "quality_score": quality_score,
                     "images":        len(images),

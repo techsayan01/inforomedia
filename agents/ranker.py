@@ -47,9 +47,11 @@ Scoring dimensions (each 1–10):
    {trends}"""
 
 # Composite score weights
-_W_RELEVANCE  = 0.45
-_W_FRESHNESS  = 0.30
-_W_SOURCE     = 0.25
+_W_RELEVANCE  = 0.30
+_W_FRESHNESS  = 0.20
+_W_SOURCE     = 0.10
+_W_VIRALITY   = 0.20
+_W_FIT        = 0.20
 
 
 @with_retry(max_retries=3, delay=5)
@@ -128,15 +130,16 @@ Rules:
         llm_scores = score_map.get(i, {})
         relevance  = float(llm_scores.get("audience_relevance", 5))
         fit        = float(llm_scores.get("editorial_fit", 5))
-        llm_score  = (relevance + fit) / 2.0      # average of two LLM dimensions
-
         freshness  = float(story.get("freshness_score", 5))
         source_rep = float(story.get("source_score", 5))
+        virality   = float(story.get("virality_signal", 5))
 
-        composite  = (
-            llm_score  * _W_RELEVANCE +
+        composite = (
+            relevance  * _W_RELEVANCE +
+            fit        * _W_FIT +
             freshness  * _W_FRESHNESS +
-            source_rep * _W_SOURCE
+            source_rep * _W_SOURCE +
+            virality   * _W_VIRALITY
         )
 
         enriched.append({
@@ -144,6 +147,7 @@ Rules:
             "market_trend":           llm_scores.get("macro_trend", ""),
             "market_relevance_score": round(relevance, 1),
             "editorial_fit_score":    round(fit, 1),
+            "virality_score":         round(virality, 1),
             "composite_score":        round(composite, 2),
             "ranking_rationale":      llm_scores.get("rationale", ""),
             "key_facts":              llm_scores.get("key_facts", []),
@@ -158,7 +162,8 @@ Rules:
             f"  #{rank} [{s['composite_score']:.1f}] "
             f"Rel:{s['market_relevance_score']} Fit:{s['editorial_fit_score']} "
             f"Fresh:{s['freshness_score']} Src:{s['source_score']} "
-            f"| {s['headline'][:55]}"
+            f"Viral:{s['virality_score']} "
+            f"| {s['headline'][:50]}"
         )
 
     return top

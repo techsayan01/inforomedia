@@ -1,0 +1,8 @@
+google-genai>=1.0.0
+pymongo>=4.6.0
+python-dotenv>=1.0.0
+requests>=2.31.0
+feedparser>=6.0.11
+pytrends>=4.9.2
+Pillow>=10.0.0
+python-wordpress-xmlrpc>=2.3
