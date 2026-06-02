@@ -22,7 +22,14 @@ from agents.researcher import research_agent
 from agents.signal_enricher import enrich_with_signals
 from agents.writer import write_article
 from content.images import fetch_unsplash_images
-from content.seo import generate_focus_keyword, generate_meta_description, generate_seo_title, generate_tags
+from content.seo import (
+    generate_focus_keyword,
+    generate_linkedin_hook,
+    generate_meta_description,
+    generate_pull_quotes,
+    generate_seo_title,
+    generate_tags,
+)
 from core.db import get_recent_articles_for_linking, mark_raw_story_processed
 from core.llm import call_llm
 from core.utils import log, safe_json_parse
@@ -243,6 +250,23 @@ class DailyNewsPipeline(Pipeline):
             tag_ids = self.wp.get_or_create_tags(tag_names)
             log.info(f"  🏷  Tags: {', '.join(tag_names[:5])}")
 
+            # Generate LinkedIn hook for social pipeline
+            viral_angle = story.get("viral_angle", "")
+            linkedin_hook = generate_linkedin_hook(seo_title, viral_angle, focus_keyword)
+            if linkedin_hook:
+                story["linkedin_hook"] = linkedin_hook
+                log.info(f"  🔗 LinkedIn hook: {linkedin_hook[:80]}…")
+
+            # Generate shareable pull quotes and inject into content
+            pull_quotes = generate_pull_quotes(
+                story.get("headline", ""),
+                viral_angle or story.get("ranking_rationale", ""),
+                story.get("key_figures", []),
+            )
+            if pull_quotes:
+                story["pull_quotes"] = pull_quotes
+                log.info(f"  💬 Pull quotes generated: {len(pull_quotes)}")
+
             # Select related articles for internal linking
             related = _pick_related_articles(
                 story.get("headline", ""), focus_keyword, cat_name
@@ -280,6 +304,9 @@ class DailyNewsPipeline(Pipeline):
                 article_type=article_type,
                 seo_score=editorial.get("seo_score") if editorial else None,
                 quality_score=editorial.get("quality_score") if editorial else None,
+                virality_score=story.get("virality_score"),
+                shareability_score=story.get("shareability_score"),
+                linkedin_hook=story.get("linkedin_hook"),
             )
 
             if post_url:

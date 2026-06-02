@@ -72,23 +72,28 @@ Step 2 — CONTENT EXTRACTION (only if approved):
   Extract directly from the text — do NOT invent or infer figures not present.
 
   key_figures     : All specific numbers, percentages, dollar amounts in the text.
-  named_entities  : Companies, regulators, executives named in the text.
+  named_entities  : Companies, studios, platforms, artists, executives named in the text.
   direct_quotes   : Any quoted speech (use exact words from the text).
-  suggested_angle : The single most interesting editorial angle for GrowStream's
-                    audience of CFOs and institutional investors. Be specific —
-                    not "explore the implications" but "focus on how X threatens Y".
-  image_keywords  : 4 concrete keywords for finding a relevant stock photo.
+  suggested_angle : The most important editorial angle for the target audience. Be specific —
+                    not "explore the implications" but "focus on how X threatens Y's market position".
+  viral_angle     : The single most SURPRISING, COUNTERINTUITIVE, or CONTROVERSIAL thing
+                    about this story. Different from suggested_angle — this is what an
+                    industry professional would forward to a colleague saying "did you see this?"
+                    It should be the thing nobody else is saying, or the implication everyone
+                    is missing. If the story has no viral angle, write "none".
+  image_keywords  : 4 concrete keywords for finding a relevant stock photo or press image.
 
 Return ONLY this JSON (no markdown, no commentary):
 {{
   "approved": true,
   "credibility_score": 8,
   "rejection_reason": "",
-  "marcus_webb_verdict": "One sentence in Marcus's voice.",
-  "key_figures": ["$28.8M raised", "Series B", "40% YoY growth"],
-  "named_entities": ["Stripe", "Sequoia Capital", "Patrick Collison"],
-  "direct_quotes": ["We expect to double headcount by Q4"],
-  "suggested_angle": "Specific angle sentence.",
+  "fact_checker_verdict": "One sentence verdict.",
+  "key_figures": ["$28.8M deal", "40% YoY growth", "12 territories"],
+  "named_entities": ["Netflix", "HYBE", "BTS"],
+  "direct_quotes": ["We expect to double international reach by Q4"],
+  "suggested_angle": "Specific editorial angle sentence.",
+  "viral_angle": "The counterintuitive or surprising insight — what nobody else is connecting.",
   "image_keywords": ["keyword1", "keyword2", "keyword3", "keyword4"],
   "story": {json.dumps({k: v for k, v in story.items() if k != "story"}, ensure_ascii=False)[:800]}
 }}
@@ -96,6 +101,7 @@ Return ONLY this JSON (no markdown, no commentary):
 Critical rules:
 - key_figures, named_entities, direct_quotes must come ONLY from the text above.
 - If the text has no figures, key_figures must be an empty list — do NOT invent any.
+- viral_angle must be grounded in the text — surprising but not fabricated.
 - The "story" field must preserve the original story dict exactly.
 """
 
@@ -125,8 +131,12 @@ Critical rules:
             val = result.get(field, [])
             if val:
                 enriched_story[field] = val
-        # key_facts used downstream by writer/editor — populate from key_figures + entities
+        # key_facts used downstream by writer/editor
         enriched_story["key_facts"] = result.get("key_figures", []) + result.get("named_entities", [])
+        # viral_angle passed to writer for hook + contrarian take
+        viral_angle = result.get("viral_angle", "")
+        if viral_angle and viral_angle.lower() != "none":
+            enriched_story["viral_angle"] = viral_angle
         result["story"] = enriched_story
 
     return result

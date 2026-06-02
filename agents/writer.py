@@ -168,20 +168,58 @@ PREVIOUS DRAFT:
     else:
         log.info(f"  ✍️  Writer is drafting [{article_type}] article…")
 
-        # Build rich source block from all extracted fields
+        viral_angle = story.get("viral_angle", "")
+        virality_signal = float(story.get("virality_signal", 5.0))
+
+        # Scale word count target based on virality signal
+        # High-virality stories get deeper treatment for more backlink potential
+        if virality_signal >= 7.0:
+            word_target = "1500–2000"
+            depth_note  = (
+                "This story is trending strongly. Write at 1500–2000 words. "
+                "Add an extra section titled <h2>Why This Story Is Bigger Than It Looks</h2> "
+                "after 'The Business Angle' — connect this story to the broader structural shift "
+                "it signals. This is the section people share."
+            )
+        else:
+            word_target = "800–1200"
+            depth_note  = ""
+
+        # Build rich source block
         source_lines = [
-            f"- Headline      : {story.get('headline', '')}",
-            f"- Market Trend  : {story.get('market_trend', '')}",
+            f"- Headline       : {story.get('headline', '')}",
+            f"- Market Trend   : {story.get('market_trend', '')}",
             f"- Editorial angle: {angle}",
-            f"- Full text     :\n{story.get('summary', '')}",
+            f"- Full text      :\n{story.get('summary', '')}",
         ]
+        if viral_angle:
+            source_lines.append(
+                f"- VIRAL ANGLE (use for hook + contrarian take): {viral_angle}"
+            )
         if story.get("key_figures"):
-            source_lines.append(f"- Key figures (USE THESE VERBATIM): {json.dumps(story['key_figures'])}")
+            source_lines.append(f"- Key figures (USE VERBATIM): {json.dumps(story['key_figures'])}")
         if story.get("named_entities"):
-            source_lines.append(f"- Named entities (USE THESE VERBATIM): {json.dumps(story['named_entities'])}")
+            source_lines.append(f"- Named entities (USE VERBATIM): {json.dumps(story['named_entities'])}")
         if story.get("direct_quotes"):
             source_lines.append(f"- Direct quotes (USE VERBATIM in blockquotes): {json.dumps(story['direct_quotes'])}")
         source_block = "\n".join(source_lines)
+
+        pull_quote_instruction = """
+PULL QUOTES — include exactly 2 pull quote boxes in the article body (after the first H2 and after 'Regional Market Impact'):
+<div style="border-left:4px solid #e50914;padding:16px 20px;background:#fff8f8;margin:24px 0;border-radius:0 6px 6px 0;">
+  <p style="font-size:1.15em;font-style:italic;margin:0;color:#1a1a1a;">"[20–35 word standalone insight — surprising, shareable, no context needed to understand]"</p>
+</div>
+Each pull quote must work as a standalone thought. Someone who only sees the screenshot must understand the point."""
+
+        exclusive_framing = ""
+        if viral_angle:
+            exclusive_framing = (
+                f"\nEXCLUSIVE ANGLE: The viral angle for this story is: '{viral_angle}'. "
+                f"Use this for the hook paragraph and the Contrarian Take. "
+                f"At least one paragraph in the body must start with "
+                f"'What nobody's connecting here is...' or 'The detail buried in this story is...' — "
+                f"this is the sentence people forward to colleagues."
+            )
 
         prompt = f"""{persona}
 
@@ -195,16 +233,22 @@ Focus keyword (use naturally 4–6 times): "{focus_kw}"
 SOURCE MATERIAL — use ONLY the facts, figures, and entities below. Do not invent anything:
 {source_block}
 
-Write an 800–1200 word SEO-optimised article using this EXACT structure:
+Write a {word_target} word SEO-optimised article using this EXACT structure:
 {structure}
 
+{pull_quote_instruction}
+{depth_note}
+{exclusive_framing}
+
 Rules:
+- HOOK: The opening sentence must be the viral angle if one is provided — not a summary of what happened but the surprising implication.
 - Use the focus keyword in the first 100 words, at least one H2, and the conclusion.
 - Write in HTML only. Allowed tags: h2, h3, h4, p, ul, li, ol, strong, em, blockquote, div, table, thead, tbody, tr, th, td.
-- Use <strong> on every key metric, percentage, dollar figure, and company name.
-- Preserve all styled div boxes and tables exactly as shown in the template — fill them with real content.
+- Use <strong> on every key metric, deal value, box office figure, and company name.
+- Preserve all styled div boxes and tables exactly as shown in the template — fill with real content.
 - No <title> tag. No emojis. Start directly with the hook paragraph.
 - Do NOT fabricate statistics, names, or figures not in the source material.
+- Every paragraph must answer "so what for the industry?" — no descriptive paragraphs without implication.
 {extra_rules}
 Return ONLY the article HTML body."""
 

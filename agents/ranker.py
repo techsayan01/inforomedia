@@ -34,24 +34,28 @@ _DEFAULT_TREND_ALIGNMENT = [
 _DEFAULT_SCORING_PROMPT = """\
 Scoring dimensions (each 1–10):
 
-1. AUDIENCE RELEVANCE — how directly does this story affect CFOs, institutional
-   investors, or finance ops leaders? Requires specific impact, not just vague
-   connection to finance. A story about "AI productivity" scores low; a story
-   about "Goldman Sachs cutting 200 compliance roles to AI automation" scores high.
+1. AUDIENCE RELEVANCE — how directly does this story affect the target audience?
+   It must have specific, concrete impact. Vague connections score low.
 
-2. EDITORIAL FIT — does this story give the writer enough material to produce a
-   strong, substantive article? Data-rich, named-source stories score high.
-   Single-sentence press releases with no figures score low.
+2. EDITORIAL FIT — does this story give the writer enough material for a strong,
+   substantive article? Named sources, specific figures, and named entities score high.
+   Thin press releases with no data score low.
 
-3. MACRO TREND ALIGNMENT — does it map to one of these structural shifts?
+3. SHAREABILITY — would an industry professional forward this to a colleague?
+   Score high if: the story contains a surprising data point, a counterintuitive
+   result, an "I didn't know that" moment, or reveals something other outlets missed.
+   Score low if: it's a routine announcement with no surprising element.
+
+4. MACRO TREND ALIGNMENT — does it map to one of these structural shifts?
    {trends}"""
 
 # Composite score weights
-_W_RELEVANCE  = 0.30
-_W_FRESHNESS  = 0.20
-_W_SOURCE     = 0.10
-_W_VIRALITY   = 0.20
-_W_FIT        = 0.20
+_W_RELEVANCE      = 0.25
+_W_FIT            = 0.15
+_W_SHAREABILITY   = 0.15
+_W_FRESHNESS      = 0.20
+_W_SOURCE         = 0.05
+_W_VIRALITY       = 0.20
 
 
 @with_retry(max_retries=3, delay=5)
@@ -98,6 +102,7 @@ Return ONLY this JSON (no markdown):
       "index": 0,
       "audience_relevance": 8,
       "editorial_fit": 7,
+      "shareability": 6,
       "macro_trend": "{trends[0]}",
       "rationale": "One sentence — why this story matters to the target audience.",
       "key_facts": ["Concrete fact 1 from the text", "Concrete fact 2", "Concrete fact 3"]
@@ -108,7 +113,8 @@ Return ONLY this JSON (no markdown):
 Rules:
 - Score every story in the input — one entry per index.
 - key_facts must be extracted verbatim or closely paraphrased from the story text — do NOT invent figures.
-- If a story has no concrete data (no figures, no named entities), cap editorial_fit at 4.
+- If a story has no concrete data, cap editorial_fit at 4.
+- If a story has no surprising or counterintuitive element, cap shareability at 4.
 """
 
     raw    = call_llm("gemini-2.5-flash", 2000, [{"role": "user", "content": prompt}])
@@ -127,19 +133,21 @@ Rules:
     # Build enriched stories with composite score
     enriched: list[dict] = []
     for i, story in enumerate(stories):
-        llm_scores = score_map.get(i, {})
-        relevance  = float(llm_scores.get("audience_relevance", 5))
-        fit        = float(llm_scores.get("editorial_fit", 5))
-        freshness  = float(story.get("freshness_score", 5))
-        source_rep = float(story.get("source_score", 5))
-        virality   = float(story.get("virality_signal", 5))
+        llm_scores    = score_map.get(i, {})
+        relevance     = float(llm_scores.get("audience_relevance", 5))
+        fit           = float(llm_scores.get("editorial_fit", 5))
+        shareability  = float(llm_scores.get("shareability", 5))
+        freshness     = float(story.get("freshness_score", 5))
+        source_rep    = float(story.get("source_score", 5))
+        virality      = float(story.get("virality_signal", 5))
 
         composite = (
-            relevance  * _W_RELEVANCE +
-            fit        * _W_FIT +
-            freshness  * _W_FRESHNESS +
-            source_rep * _W_SOURCE +
-            virality   * _W_VIRALITY
+            relevance     * _W_RELEVANCE +
+            fit           * _W_FIT +
+            shareability  * _W_SHAREABILITY +
+            freshness     * _W_FRESHNESS +
+            source_rep    * _W_SOURCE +
+            virality      * _W_VIRALITY
         )
 
         enriched.append({
@@ -147,6 +155,7 @@ Rules:
             "market_trend":           llm_scores.get("macro_trend", ""),
             "market_relevance_score": round(relevance, 1),
             "editorial_fit_score":    round(fit, 1),
+            "shareability_score":     round(shareability, 1),
             "virality_score":         round(virality, 1),
             "composite_score":        round(composite, 2),
             "ranking_rationale":      llm_scores.get("rationale", ""),
@@ -161,9 +170,8 @@ Rules:
         log.info(
             f"  #{rank} [{s['composite_score']:.1f}] "
             f"Rel:{s['market_relevance_score']} Fit:{s['editorial_fit_score']} "
-            f"Fresh:{s['freshness_score']} Src:{s['source_score']} "
-            f"Viral:{s['virality_score']} "
-            f"| {s['headline'][:50]}"
+            f"Share:{s['shareability_score']} Fresh:{s['freshness_score']} "
+            f"Viral:{s['virality_score']} | {s['headline'][:45]}"
         )
 
     return top

@@ -327,6 +327,9 @@ class WordPressClient(Publisher):
         article_type: str | None = None,
         seo_score: int | None = None,
         quality_score: int | None = None,
+        virality_score: float | None = None,
+        shareability_score: float | None = None,
+        linkedin_hook: str | None = None,
     ) -> str | None:
         """Publish a post via WordPress REST API. Returns the live URL or None."""
         for attempt in range(1, MAX_RETRIES + 1):
@@ -370,6 +373,9 @@ class WordPressClient(Publisher):
                         article_type=article_type,
                         seo_score=seo_score,
                         quality_score=quality_score,
+                        virality_score=virality_score,
+                        shareability_score=shareability_score,
+                        linkedin_hook=linkedin_hook,
                     )
                     return post_url
                 elif r.status_code in (401, 403):
