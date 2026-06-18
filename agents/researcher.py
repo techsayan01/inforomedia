@@ -102,8 +102,8 @@ def _extract_article_text(url: str) -> str:
             timeout=8,
             headers={
                 "User-Agent": (
-                    "Mozilla/5.0 (compatible; GrowStreamBot/1.0; "
-                    "+https://growstreammedia.com)"
+                    "Mozilla/5.0 (compatible; InfoRoMediaBot/1.0; "
+                    "+https://info-ro-media.com)"
                 ),
                 "Accept": "text/html,application/xhtml+xml",
             },

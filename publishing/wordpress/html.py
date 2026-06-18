@@ -108,8 +108,8 @@ def build_html(
     story: dict,
     focus_keyword: str = "",
     meta_description: str = "",
-    publisher_name: str = "GrowStream Media",
-    publisher_url: str = "https://growstreammedia.com",
+    publisher_name: str = "InfoRo Media",
+    publisher_url: str = "https://info-ro-media.com",
     related_articles: list[dict] | None = None,
 ) -> str:
     """Assemble the final post HTML.

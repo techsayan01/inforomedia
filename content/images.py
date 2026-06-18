@@ -18,11 +18,9 @@ from core.utils import log
 # Load .env
 try:
     from dotenv import load_dotenv
-    for _p in [Path(__file__).parent.parent / ".env",
-               Path(__file__).parent.parent / "growstream" / ".env"]:
-        if _p.exists():
-            load_dotenv(dotenv_path=_p, override=True)
-            break
+    _env = Path(__file__).parent.parent / ".env"
+    if _env.exists():
+        load_dotenv(dotenv_path=_env, override=True)
 except ImportError:
     pass
 
